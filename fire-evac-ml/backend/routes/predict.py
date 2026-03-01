@@ -5,6 +5,7 @@
 import sys
 import os
 from flask import Blueprint, request, jsonify
+import json
 
 # ── Add the ML folder to the Python path so we can import from it ────
 ML_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "machine-learning-stuff"))
@@ -18,6 +19,36 @@ if ML_DIR not in sys.path:
 # from model import predict as ml_predict
 
 predict_bp = Blueprint("predict", __name__)
+
+# Module-level variable to hold the last received predict input (in-memory)
+LAST_PREDICT_INPUT = None
+# File to persist inputs (append-only, newline-delimited JSON). Change path if needed.
+SAVED_INPUTS_FILE = os.path.join(os.path.dirname(__file__), "saved_inputs.jsonl")
+
+
+@predict_bp.before_request
+def _capture_predict_request():
+    """Capture and persist incoming JSON for the /predict endpoint
+    """
+    global LAST_PREDICT_INPUT
+    try:
+        # Only capture POST to this blueprint's /predict route
+        if request.method != "POST" or not request.path.endswith("/predict"):
+            return
+        data = request.get_json(silent=True)
+        if data is None:
+            return
+        LAST_PREDICT_INPUT = data
+        # Ensure directory exists then append newline-delimited JSON
+        try:
+            with open(SAVED_INPUTS_FILE, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(data, ensure_ascii=False) + "\n")
+        except Exception:
+            # Swallow file IO errors so we don't break the request flow
+            pass
+    except Exception:
+        # Guard against unexpected errors in the hook
+        pass
 
 
 @predict_bp.route("/predict", methods=["POST"])
