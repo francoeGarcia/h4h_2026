@@ -24,7 +24,7 @@ def call_ai_model(input_data: dict) -> dict:
     """
     api_key = os.getenv("OPENAI_API_KEY")
     model_name = os.getenv("OPENAI_MODEL", "gpt-4o")
-    api_url = "https://api.openai.com/v1/responses"
+    api_url = "https://api.openai.com/v1/chat/completions"
 
     if not api_key:
         return {
